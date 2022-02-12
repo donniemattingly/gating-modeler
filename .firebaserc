@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "reagent-buddy"
+  },
+  "targets": {
+    "reagent-buddy": {
+      "hosting": {
+        "gating-modeler": [
+          "gating-modeler"
+        ]
+      }
+    }
+  }
+}
