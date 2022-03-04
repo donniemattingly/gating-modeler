@@ -84,13 +84,12 @@ export async function readFileAsDonorData(file: File) {
     });
 
     delete donorData[''];
-    console.log(donorData);
 
+    const fullData = [];
     for (const donor in donorData) {
         for (const peptide in donorData[donor]) {
             if (peptide !== 'name') {
                 for (const marker in donorData[donor][peptide]) {
-                    console.log(donor, peptide, marker);
                     const unstim = donorData[donor]['Unstimulated'][marker];
                     const value = donorData[donor][peptide][marker];
                     const newData = {
@@ -99,12 +98,19 @@ export async function readFileAsDonorData(file: File) {
                         original: value
                     }
                     set(donorData, [donor, peptide, marker], newData);
+                    fullData.push({
+                        donor,
+                        peptide,
+                        marker,
+                        unstim,
+                        ...newData
+                    })
                 }
             }
         }
     }
 
-    return [file.name, donorData];
+    return [file.name, {byDonor: donorData, byRow: fullData}];
 }
 
 export async function analyzeFile(donorData: any) {

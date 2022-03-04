@@ -1,17 +1,25 @@
 import {useStoreActions, useStoreState} from "easy-peasy";
 import {StoreModel} from "./stores/main";
-import {useCallback, useEffect, useState} from "react";
+import {SyntheticEvent, useCallback, useEffect, useState} from "react";
 import {readFileAsDonorData} from "./stores/transforms";
 import {useDropzone} from "react-dropzone";
 import React from 'react'
 import styled from 'styled-components'
-import {TableOptions, useTable} from 'react-table'
+import {TableOptions, useExpanded, useGroupBy, useTable} from 'react-table'
+
+const getInterestingInfo = (donor: string, donorData: any) => {
+    const newData = {...donorData};
+
+}
 
 export const DonorSelection = () => {
     const files = useStoreState<StoreModel>(state => state.transforms.files)
     const donorData = useStoreState<StoreModel>(state => state.transforms.donorData);
     const parseDonorData = useStoreActions<StoreModel>(actions => actions.transforms.parseDonorData);
     const readFile = useStoreActions<StoreModel>(actions => actions.transforms.readFile);
+
+    const [file, setFile] = useState<string>();
+    const [donor, setDonor] = useState<string>();
 
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
         for (const file of acceptedFiles) {
@@ -25,44 +33,58 @@ export const DonorSelection = () => {
     const columns = React.useMemo(
         () => [
             {
-                Header: 'Name',
-                columns: [
-                    {
-                        Header: 'First Name',
-                        accessor: 'firstName',
-                    },
-                    {
-                        Header: 'Last Name',
-                        accessor: 'lastName',
-                    },
-                ],
+                Header: 'Donor',
+                accessor: 'donor',
             },
             {
-                Header: 'Info',
-                columns: [
-                    {
-                        Header: 'Age',
-                        accessor: 'age',
-                    },
-                    {
-                        Header: 'Visits',
-                        accessor: 'visits',
-                    },
-                    {
-                        Header: 'Status',
-                        accessor: 'status',
-                    },
-                    {
-                        Header: 'Profile Progress',
-                        accessor: 'progress',
-                    },
-                ],
+                Header: 'Peptide',
+                accessor: 'peptide',
+            },
+            {
+                Header: 'Marker',
+                accessor: 'marker',
+            },
+            {
+                Header: 'foldChange',
+                accessor: 'foldChange',
+            },
+            {
+                Header: 'Frequency',
+                accessor: 'original',
+            },
+            {
+                Header: 'Unstimulated',
+                accessor: 'unstim',
             },
         ],
         []
     )
 
-    const data = React.useMemo(() => Object.values(donorData), [donorData])
+    const data = React.useMemo(() => {
+        if(file && donor){
+            return donorData[file].byRow
+        }
+
+        return [];
+    }, [donorData, file])
+
+
+    useEffect(() => {
+        const firstFile = Object.keys(donorData)[0];
+        const firstDonor = Object.keys(donorData[firstFile] ?? [])[0];
+        setFile(firstFile);
+        setDonor(firstDonor);
+    }, [donorData])
+
+    const handleFileChange = (event: any) => {
+        setFile(event.target.value);
+    }
+
+    const handleDonorChange = (event: any) => {
+        setDonor(event.target.value);
+    }
+
+    console.log(data);
 
     return (
         <div className="m-auto flex flex-col items-center w-10/12">
@@ -72,13 +94,23 @@ export const DonorSelection = () => {
                     <input {...getInputProps()}/>
                     <h1 className="font-bold text-4xl text-white"> Drop all your files here</h1>
                 </div>
-                : <pre>
-                    {JSON.stringify(donorData, null, 2)}
-                </pre>
+                : null
             }
 
+            <select value={file} onChange={handleFileChange}>
+                {Object.keys(donorData).map(filename => <option value={filename}>
+                    {filename}
+                </option>)}
+            </select>
+            {file
+            ? <select value={donor} onChange={handleDonorChange}>
+                    {Object.keys(donorData[file]).map(donor => <option value={donor}>
+                        {donor}
+                    </option>)}
+                </select>
+            : null}
             <Styles>
-                <Table columns={columns} data={data} />
+                <Table columns={columns} data={data}/>
             </Styles>
         </div>
     )
@@ -114,43 +146,98 @@ const Styles = styled.div`
   }
 `
 
-function Table({ columns, data }: TableOptions<any>) {
-    // Use the state and functions returned from useTable to build your UI
+function Table({ columns, data }: any) {
     const {
         getTableProps,
         getTableBodyProps,
         headerGroups,
         rows,
         prepareRow,
-    } = useTable({
-        columns,
-        data,
-    })
+        state: { groupBy, expanded },
+    } = useTable<any>(
+        {
+            columns,
+            data,
+        },
+        useGroupBy,
+        useExpanded // useGroupBy would be pretty useless without useExpanded ;)
+    )
 
-    // Render the UI for your table
+    // We don't want to render all of the rows for this example, so cap
+    // it at 100 for this use case
+    const firstPageRows = rows.slice(0, 100)
+
     return (
-        <table {...getTableProps()}>
-            <thead>
-            {headerGroups.map(headerGroup => (
-                <tr {...headerGroup.getHeaderGroupProps()}>
-                    {headerGroup.headers.map(column => (
-                        <th {...column.getHeaderProps()}>{column.render('Header')}</th>
-                    ))}
-                </tr>
-            ))}
-            </thead>
-            <tbody {...getTableBodyProps()}>
-            {rows.map((row, i) => {
-                prepareRow(row)
-                return (
-                    <tr {...row.getRowProps()}>
-                        {row.cells.map(cell => {
-                            return <td {...cell.getCellProps()}>{cell.render('Cell')}</td>
-                        })}
+        <>
+      <pre>
+        <code>{JSON.stringify({ groupBy, expanded }, null, 2)}</code>
+      </pre>
+            <table {...getTableProps()}>
+                <thead>
+                {headerGroups.map(headerGroup => (
+                    <tr {...headerGroup.getHeaderGroupProps()}>
+                        {headerGroup.headers.map(column => (
+                            <th {...column.getHeaderProps()}>
+                                {column.canGroupBy ? (
+                                    // If the column can be grouped, let's add a toggle
+                                    <span {...column.getGroupByToggleProps()}>
+                      {column.isGrouped ? '🛑 ' : '👊 '}
+                    </span>
+                                ) : null}
+                                {column.render('Header')}
+                            </th>
+                        ))}
                     </tr>
-                )
-            })}
-            </tbody>
-        </table>
+                ))}
+                </thead>
+                <tbody {...getTableBodyProps()}>
+                {firstPageRows.map((row, i) => {
+                    prepareRow(row)
+                    return (
+                        <tr {...row.getRowProps()}>
+                            {row.cells.map(cell => {
+                                return (
+                                    <td
+                                        // For educational purposes, let's color the
+                                        // cell depending on what type it is given
+                                        // from the useGroupBy hook
+                                        {...cell.getCellProps()}
+                                        style={{
+                                            background: cell.isGrouped
+                                                ? '#0aff0082'
+                                                : cell.isAggregated
+                                                    ? '#ffa50078'
+                                                    : cell.isPlaceholder
+                                                        ? '#ff000042'
+                                                        : 'white',
+                                        }}
+                                    >
+                                        {cell.isGrouped ? (
+                                            // If it's a grouped cell, add an expander and row count
+                                            <>
+                          <span {...row.getToggleRowExpandedProps()}>
+                            {row.isExpanded ? '👇' : '👉'}
+                          </span>{' '}
+                                                {cell.render('Cell')} ({row.subRows.length})
+                                            </>
+                                        ) : cell.isAggregated ? (
+                                            // If the cell is aggregated, use the Aggregated
+                                            // renderer for cell
+                                            cell.render('Aggregated')
+                                        ) : cell.isPlaceholder ? null : ( // For cells with repeated values, render null
+                                            // Otherwise, just render the regular cell
+                                            cell.render('Cell')
+                                        )}
+                                    </td>
+                                )
+                            })}
+                        </tr>
+                    )
+                })}
+                </tbody>
+            </table>
+            <br />
+            <div>Showing the first 100 results of {rows.length} rows</div>
+        </>
     )
 }
