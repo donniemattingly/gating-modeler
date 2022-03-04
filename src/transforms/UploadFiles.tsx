@@ -1,5 +1,6 @@
 import {useDropzone} from "react-dropzone";
 import {useCallback, useEffect, useRef, useState} from "react";
+import { useNavigate } from "react-router-dom";
 import {useStoreActions, useStoreState} from "easy-peasy";
 import {StoreModel} from "../stores/main";
 import {saveAs} from 'file-saver';
@@ -20,9 +21,14 @@ export const UploadFiles = () => {
     const suffixes: string[] = useStoreState<StoreModel>(state => state.transforms.suffixes);
     const readFile = useStoreActions<StoreModel>(actions => actions.transforms.readFile);
     const rowFormatStringRef = useRef<HTMLPreElement>(null);
+    const navigate = useNavigate();
 
     const [converting, setConverting] = useState(false);
     const [download, setDownload] = useState<Blob | null>(null);
+
+    const goToDonorSelection = () => {
+        navigate('/donor-selection')
+    }
 
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
         setConverting(true);
@@ -84,6 +90,13 @@ export const UploadFiles = () => {
                     ? <button className="bg-slate-500 rounded-lg p-3 text-slate-50"
                               onClick={downloadClicked}>
                         Download
+                    </button>
+                    : null
+                }
+                {download !== null
+                    ? <button className="bg-slate-500 rounded-lg p-3 text-slate-50"
+                              onClick={goToDonorSelection}>
+                        Help Select Donors
                     </button>
                     : null
                 }
