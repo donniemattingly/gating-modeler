@@ -25,9 +25,13 @@ export const UploadFiles = () => {
     const [download, setDownload] = useState<Blob | null>(null);
 
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
+        setConverting(true);
+        console.log('dropping');
         for (const file of acceptedFiles) {
-            readFile(file)
+            await readFile(file)
         }
+        console.log('dropped');
+        setConverting(false)
     }, [files])
     const {getRootProps, getInputProps, isDragActive} = useDropzone({onDrop})
 
@@ -48,11 +52,14 @@ export const UploadFiles = () => {
     }
 
     return (
-        <div className="m-auto flex flex-col items-center">
+        <div className="m-auto flex flex-col items-center w-10/12">
             <div {...getRootProps()}
-                 className="w-10/12 mt-10 m-auto bg-slate-500 h-80 rounded-xl grid place-items-center">
+                 className="w-full mt-10 m-auto bg-slate-500 h-80 rounded-xl grid place-items-center">
                 <input {...getInputProps()}/>
                 <h1 className="font-bold text-4xl text-white"> Drop all your files here</h1>
+                {converting
+                    ? <p> Converting </p>
+                    : null}
             </div>
             <div className="grid grid-cols-2 w-10/12 m-auto">
                 <div>
@@ -68,7 +75,7 @@ export const UploadFiles = () => {
                     </div>)}
                 </div>
             </div>
-            <div>
+            <div className="flex flex-row justify-around w-full">
                 <button className="bg-slate-500 rounded-lg p-3 text-slate-50"
                         onClick={transformData}>
                     Transform Data
