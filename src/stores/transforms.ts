@@ -99,7 +99,7 @@ export async function readFileAsDonorData(file: File) {
                     const unstim = donorData[donor]['Unstimulated'][marker];
                     const value = donorData[donor][peptide][marker];
                     const newData = {
-                        [`foldChange${fileType}`]: value / unstim,
+                        [`foldChange${fileType}`]: (value / unstim).toFixed(4),
                         [`delta${fileType}`]: value - unstim,
                         [`original${fileType}`]: value,
                         [`unstimulated${fileType}`]: unstim,
@@ -170,6 +170,7 @@ const combineFiles = (donorData: Record<string, { byDonor: object, byRow: object
         for (const row of donorData[file].byRow) {
             allData.push(
                 {
+                    file: file,
                     cellType: cellTypeFromFileName(file),
                     ...row
                 }
@@ -177,7 +178,55 @@ const combineFiles = (donorData: Record<string, { byDonor: object, byRow: object
         }
     }
 
-    return allData;
+    const combinedRows = combineRows(allData)
+
+    return combinedRows;
+}
+
+const antibody = 'aIFNy';
+const combineRows = (rows: any[]): any[] => {
+
+    const getRowKey = (row: any): string => {
+        return row.cellType + row.donor + row.marker + row.peptide
+    }
+
+    const byRowKey: any = {}
+
+    for(const row of rows){
+        const orig: any = byRowKey[getRowKey(row)];
+        byRowKey[getRowKey(row)] = {...orig, ...row}
+    }
+
+    const combinedRows = Object.values(byRowKey);
+    const antiKeys = {
+        antibodyFoldChangeFrequency: 'foldChangeFrequency',
+        antibodyDeltaFrequency: 'deltaFrequency',
+        antibodyOriginalFrequency: 'originalFrequency',
+        antibodyUnstimulatedFrequency: 'unstimulatedFrequency',
+        antibodyFoldChangeMFI: 'foldChangeMFI',
+        antibodyDeltaMFI: 'deltaMFI',
+        antibodyOriginalMFI: 'originalMFI',
+        antibodyUnstimulatedMFI: 'unstimulatedMFI',
+    }
+
+    const antiRowsCombined = combinedRows.filter((it: any) => !it.peptide.includes('+')).map((row: any) => {
+        const antiPeptideRowKey = getRowKey({...row, peptide: row.peptide + ' + ' + antibody});
+        if(byRowKey[antiPeptideRowKey]) {
+            const anti = byRowKey[antiPeptideRowKey];
+            const antiValues = Object.fromEntries(Object.entries(antiKeys).map(([antiKey, regKey]) => {
+                return [antiKey, anti[regKey]]
+            }))
+
+            return {
+                ...row,
+                ...antiValues
+            }
+        }
+
+        return row;
+    })
+
+    return antiRowsCombined;
 }
 
 export async function analyzeFile(donorData: any) {

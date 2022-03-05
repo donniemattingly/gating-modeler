@@ -12,6 +12,12 @@ const getInterestingInfo = (donor: string, donorData: any) => {
 
 }
 
+
+const filteredAverage = (leafValues: any[]): any => {
+    const filtered = leafValues.filter(it => !isNaN(it))
+    return filtered.reduce((a, b) => a + b, 0) / filtered.length;
+}
+
 export const DonorSelection = () => {
     const files = useStoreState<StoreModel>(state => state.transforms.files)
     const donorData = useStoreState<StoreModel>(state => state.transforms.donorData);
@@ -50,40 +56,89 @@ export const DonorSelection = () => {
             },
             {
                 Header: 'Frequency',
-                columns: [
-                    {
-                        Header: 'Fold Change',
-                        accessor: 'foldChangeFrequency',
-                        aggregate: 'average',
-                        Aggregated: ({ value }: any) => `${Math.round(value * 100) / 100} (avg)`,
-                    },
-                    {
-                        Header: 'Stimulated',
-                        accessor: 'originalFrequency',
-                    },
-                    {
-                        Header: 'Unstimulated',
-                        accessor: 'unstimulatedFrequency',
-                    },
-                ]
+                columns:
+                    [
+                        {
+                            Header: 'Original',
+                            columns: [
+                                {
+                                    Header: 'Fold Change',
+                                    accessor: 'foldChangeFrequency',
+                                    aggregate: filteredAverage,
+                                    Aggregated: ({value}: any) => `${Math.round(value * 100) / 100} (avg)`,
+                                },
+                                {
+                                    Header: 'Stimulated',
+                                    accessor: 'originalFrequency',
+                                },
+                                {
+                                    Header: 'Unstimulated',
+                                    accessor: 'unstimulatedFrequency',
+                                },
+                            ]
+                        },
+                        {
+                            Header: 'With Blocking AntiBody',
+                            columns: [
+                                {
+                                    Header: 'Fold Change',
+                                    accessor: 'antibodyFoldChangeFrequency',
+                                    aggregate: filteredAverage,
+                                    Aggregated: ({value}: any) => `${Math.round(value * 100) / 100} (avg)`,
+                                },
+                                {
+                                    Header: 'Stimulated',
+                                    accessor: 'antibodyOriginalFrequency',
+                                },
+                                {
+                                    Header: 'Unstimulated',
+                                    accessor: 'antibodyUnstimulatedFrequency',
+                                },
+                            ]
+                        }
+                    ]
             },
             {
                 Header: 'MFI',
                 columns: [
                     {
-                        Header: 'Fold Change',
-                        accessor: 'foldChangeMFI',
-                        aggregate: 'average',
-                        Aggregated: ({ value }: any) => `${Math.round(value * 100) / 100} (avg)`,
+                        Header: 'Original',
+                        columns: [
+                            {
+                                Header: 'Fold Change',
+                                accessor: 'foldChangeMFI',
+                                aggregate: filteredAverage,
+                                Aggregated: ({value}: any) => `${Math.round(value * 100) / 100} (avg)`,
+                            },
+                            {
+                                Header: 'Stimulated',
+                                accessor: 'originalMFI',
+                            },
+                            {
+                                Header: 'Unstimulated',
+                                accessor: 'unstimulatedMFI',
+                            },
+                        ]
                     },
                     {
-                        Header: 'Stimulated',
-                        accessor: 'originalMFI',
-                    },
-                    {
-                        Header: 'Unstimulated',
-                        accessor: 'unstimulatedMFI',
-                    },
+                        Header: 'With Blocking Antibody',
+                        columns: [
+                            {
+                                Header: 'Fold Change',
+                                accessor: 'antibodyFoldChangeMFI',
+                                aggregate: filteredAverage,
+                                Aggregated: ({value}: any) => `${Math.round(value * 100) / 100} (avg)`,
+                            },
+                            {
+                                Header: 'Stimulated',
+                                accessor: 'antibodyOriginalMFI',
+                            },
+                            {
+                                Header: 'Unstimulated',
+                                accessor: 'antibodyUnstimulatedMFI',
+                            },
+                        ]
+                    }
                 ]
             },
         ],
