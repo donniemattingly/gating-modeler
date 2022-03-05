@@ -5,7 +5,7 @@ import {readFileAsDonorData} from "./stores/transforms";
 import {useDropzone} from "react-dropzone";
 import React from 'react'
 import styled from 'styled-components'
-import {TableOptions, useExpanded, useGroupBy, useTable} from 'react-table'
+import {TableOptions, useExpanded, useGroupBy, useSortBy, useTable} from 'react-table'
 
 const getInterestingInfo = (donor: string, donorData: any) => {
     const newData = {...donorData};
@@ -33,6 +33,10 @@ export const DonorSelection = () => {
     const columns = React.useMemo(
         () => [
             {
+                Header: 'Cell Type',
+                accessor: 'cellType',
+            },
+            {
                 Header: 'Donor',
                 accessor: 'donor',
             },
@@ -45,23 +49,49 @@ export const DonorSelection = () => {
                 accessor: 'marker',
             },
             {
-                Header: 'foldChange',
-                accessor: 'foldChange',
-            },
-            {
                 Header: 'Frequency',
-                accessor: 'original',
+                columns: [
+                    {
+                        Header: 'Fold Change',
+                        accessor: 'foldChangeFrequency',
+                        aggregate: 'average',
+                        Aggregated: ({ value }: any) => `${Math.round(value * 100) / 100} (avg)`,
+                    },
+                    {
+                        Header: 'Stimulated',
+                        accessor: 'originalFrequency',
+                    },
+                    {
+                        Header: 'Unstimulated',
+                        accessor: 'unstimulatedFrequency',
+                    },
+                ]
             },
             {
-                Header: 'Unstimulated',
-                accessor: 'unstim',
+                Header: 'MFI',
+                columns: [
+                    {
+                        Header: 'Fold Change',
+                        accessor: 'foldChangeMFI',
+                        aggregate: 'average',
+                        Aggregated: ({ value }: any) => `${Math.round(value * 100) / 100} (avg)`,
+                    },
+                    {
+                        Header: 'Stimulated',
+                        accessor: 'originalMFI',
+                    },
+                    {
+                        Header: 'Unstimulated',
+                        accessor: 'unstimulatedMFI',
+                    },
+                ]
             },
         ],
         []
     )
 
     const data = React.useMemo(() => {
-        if(file && donor){
+        if (file && donor) {
             return donorData[file].byRow
         }
 
@@ -84,8 +114,6 @@ export const DonorSelection = () => {
         setDonor(event.target.value);
     }
 
-    console.log(data);
-
     return (
         <div className="m-auto flex flex-col items-center w-10/12">
             {files.length === 0
@@ -97,18 +125,6 @@ export const DonorSelection = () => {
                 : null
             }
 
-            <select value={file} onChange={handleFileChange}>
-                {Object.keys(donorData).map(filename => <option value={filename}>
-                    {filename}
-                </option>)}
-            </select>
-            {file
-            ? <select value={donor} onChange={handleDonorChange}>
-                    {Object.keys(donorData[file]).map(donor => <option value={donor}>
-                        {donor}
-                    </option>)}
-                </select>
-            : null}
             <Styles>
                 <Table columns={columns} data={data}/>
             </Styles>
@@ -146,21 +162,22 @@ const Styles = styled.div`
   }
 `
 
-function Table({ columns, data }: any) {
+function Table({columns, data}: any) {
     const {
         getTableProps,
         getTableBodyProps,
         headerGroups,
         rows,
         prepareRow,
-        state: { groupBy, expanded },
+        state: {groupBy, expanded},
     } = useTable<any>(
         {
             columns,
             data,
         },
         useGroupBy,
-        useExpanded // useGroupBy would be pretty useless without useExpanded ;)
+        useSortBy,
+        useExpanded
     )
 
     // We don't want to render all of the rows for this example, so cap
@@ -169,9 +186,6 @@ function Table({ columns, data }: any) {
 
     return (
         <>
-      <pre>
-        <code>{JSON.stringify({ groupBy, expanded }, null, 2)}</code>
-      </pre>
             <table {...getTableProps()}>
                 <thead>
                 {headerGroups.map(headerGroup => (
@@ -185,6 +199,13 @@ function Table({ columns, data }: any) {
                     </span>
                                 ) : null}
                                 {column.render('Header')}
+                                <span {...column.getSortByToggleProps()}>
+                    {column.isSorted
+                        ? column.isSortedDesc
+                            ? ' 🔽'
+                            : ' 🔼'
+                        : ' ▶️'}
+                  </span>
                             </th>
                         ))}
                     </tr>
@@ -236,7 +257,7 @@ function Table({ columns, data }: any) {
                 })}
                 </tbody>
             </table>
-            <br />
+            <br/>
             <div>Showing the first 100 results of {rows.length} rows</div>
         </>
     )

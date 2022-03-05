@@ -85,6 +85,12 @@ export async function readFileAsDonorData(file: File) {
 
     delete donorData[''];
 
+    let fileType = 'Frequency';
+
+    if (file.name.toLocaleLowerCase().includes('mfi')) {
+        fileType = 'MFI'
+    }
+
     const fullData = [];
     for (const donor in donorData) {
         for (const peptide in donorData[donor]) {
@@ -93,16 +99,16 @@ export async function readFileAsDonorData(file: File) {
                     const unstim = donorData[donor]['Unstimulated'][marker];
                     const value = donorData[donor][peptide][marker];
                     const newData = {
-                        foldChange: value / unstim,
-                        delta: value - unstim,
-                        original: value
+                        [`foldChange${fileType}`]: value / unstim,
+                        [`delta${fileType}`]: value - unstim,
+                        [`original${fileType}`]: value,
+                        [`unstimulated${fileType}`]: unstim,
                     }
                     set(donorData, [donor, peptide, marker], newData);
                     fullData.push({
                         donor,
                         peptide,
-                        marker,
-                        unstim,
+                        marker: sanitizeMarker(marker),
                         ...newData
                     })
                 }
@@ -111,6 +117,67 @@ export async function readFileAsDonorData(file: File) {
     }
 
     return [file.name, {byDonor: donorData, byRow: fullData}];
+}
+
+const sanitizeMarker = (marker: string): string => {
+    if (marker.includes('+')) {
+        return marker.split('+')[0];
+    }
+
+    if (marker.includes('MFI')) {
+        return marker.split(' MFI')[0];
+    }
+
+    return marker.trim();
+}
+
+const cellTypes = {
+    'Alveolar Macrophages': ['AM'],
+    'Interstitial Macrophages': ['IM'],
+    'Macrophages': ['Mac'],
+    'Monocytes': ['Mono'],
+    'Classical Monocytes': [],
+    'Non Classical Monocytes': [],
+    'Intermediate Monocytes': [],
+    'pDC': ['pDC'],
+    'Dendritic Cells': ['DC'],
+    'Epithelial Cells': ['Epithelial'],
+}
+
+const cellAbbreviations = Object.fromEntries(Object.entries(cellTypes).flatMap(([primary, secondary]) => secondary.map(it => [it, primary])));
+const cellTypeKeys = Object.keys(cellTypes);
+const cellAbbreviationKeys = Object.keys(cellAbbreviations);
+
+const cellTypeFromFileName = (filename: string): string => {
+    for(const cellType of cellTypeKeys){
+        if(filename.includes(cellType)){
+            return cellType;
+        }
+    }
+
+    for(const cellAbbreviation of cellAbbreviationKeys){
+        if(filename.includes(cellAbbreviation)){
+            return cellAbbreviations[cellAbbreviation];
+        }
+    }
+
+    return filename;
+}
+
+const combineFiles = (donorData: Record<string, { byDonor: object, byRow: object[] }>): object[] => {
+    const allData = [];
+    for (const file in donorData) {
+        for (const row of donorData[file].byRow) {
+            allData.push(
+                {
+                    cellType: cellTypeFromFileName(file),
+                    ...row
+                }
+            )
+        }
+    }
+
+    return allData;
 }
 
 export async function analyzeFile(donorData: any) {
@@ -234,7 +301,8 @@ export const transformsStore: TransformsModel = {
     parseDonorData: thunk(async (actions, payload, helpers) => {
         const files = helpers.getState().files;
         const donorData = Object.fromEntries(await Promise.all(files.map(readFileAsDonorData)));
-        actions.setDonorData(donorData);
+        const allData = combineFiles(donorData);
+        actions.setDonorData({all: {byRow: allData}, ...donorData});
     })
     // onAddFile: thunkOn(
     //     // targetResolver:
