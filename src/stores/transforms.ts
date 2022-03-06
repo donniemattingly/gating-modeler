@@ -62,8 +62,32 @@ export async function convertFile(file: File, options: { rowFormat: string[] }) 
     return [file, converted]
 }
 
+const getPercentageOrDonorName = (index: number, row: any[]) => {
+    if(index === 0){
+        return row[index]
+    }
+
+    return (parseFloat(row[index])).toFixed(4)
+}
+
+export async function readFileAsIFNyFrequencies(file: File): Promise<any> {
+    const csv = await parseCSV(file)
+    console.log(csv);
+    const csvData = csv.data;
+    const headerRow = csv.data[1];
+    const keys: { [index: number]: string } = {...Object.fromEntries(headerRow.map((k, i) => [i, k])
+            .filter(([i, k]) => k !== '')), 0: 'donor'}
+
+    const data = csvData.slice(2, -1).filter(row => row[0] !== '').map((row: any) => {
+        return Object.fromEntries(Object.entries(keys).map(([i, k]) => [k, getPercentageOrDonorName(parseInt(i), row)]))
+    })
+
+    return ['IFNy Frequencies', data]
+}
+
 export async function readFileAsDonorData(file: File) {
     const csv = await parseCSV(file)
+    console.log(csv);
     const csvData = csv.data;
     const headerRow = csv.data[0];
     const keys: { [index: number]: string } = {...Object.fromEntries(headerRow.map((k, i) => [i, k])), 0: 'Name'}
@@ -99,8 +123,8 @@ export async function readFileAsDonorData(file: File) {
                     const unstim = donorData[donor]['Unstimulated'][marker];
                     const value = donorData[donor][peptide][marker];
                     const newData = {
-                        [`foldChange${fileType}`]: (value / unstim).toFixed(4),
-                        [`delta${fileType}`]: value - unstim,
+                        [`foldChange${fileType}`]: (value / unstim).toFixed(3),
+                        [`delta${fileType}`]: (value - unstim).toFixed(3),
                         [`original${fileType}`]: value,
                         [`unstimulated${fileType}`]: unstim,
                     }
@@ -149,14 +173,14 @@ const cellTypeKeys = Object.keys(cellTypes);
 const cellAbbreviationKeys = Object.keys(cellAbbreviations);
 
 const cellTypeFromFileName = (filename: string): string => {
-    for(const cellType of cellTypeKeys){
-        if(filename.includes(cellType)){
+    for (const cellType of cellTypeKeys) {
+        if (filename.includes(cellType)) {
             return cellType;
         }
     }
 
-    for(const cellAbbreviation of cellAbbreviationKeys){
-        if(filename.includes(cellAbbreviation)){
+    for (const cellAbbreviation of cellAbbreviationKeys) {
+        if (filename.includes(cellAbbreviation)) {
             return cellAbbreviations[cellAbbreviation];
         }
     }
@@ -166,6 +190,8 @@ const cellTypeFromFileName = (filename: string): string => {
 
 const combineFiles = (donorData: Record<string, { byDonor: object, byRow: object[] }>): object[] => {
     const allData = [];
+    const ifnyFrequencies = donorData['IFNy Frequencies'];
+    delete donorData['IFNy Frequencies'];
     for (const file in donorData) {
         for (const row of donorData[file].byRow) {
             allData.push(
@@ -178,13 +204,21 @@ const combineFiles = (donorData: Record<string, { byDonor: object, byRow: object
         }
     }
 
-    const combinedRows = combineRows(allData)
+    const combinedRows = combineRows(allData, ifnyFrequencies)
 
     return combinedRows;
 }
 
 const antibody = 'aIFNy';
-const combineRows = (rows: any[]): any[] => {
+const combineRows = (rows: any[], ifnyFrequencies: any = null): any[] => {
+
+    let ifnyByDonor: any;
+
+    if(ifnyFrequencies){
+        ifnyByDonor = Object.values(ifnyFrequencies).reduce((acc: any, val: any) => ({...acc, [val.donor]: val}),{})
+    }
+
+    console.log(ifnyByDonor);
 
     const getRowKey = (row: any): string => {
         return row.cellType + row.donor + row.marker + row.peptide
@@ -192,7 +226,7 @@ const combineRows = (rows: any[]): any[] => {
 
     const byRowKey: any = {}
 
-    for(const row of rows){
+    for (const row of rows) {
         const orig: any = byRowKey[getRowKey(row)];
         byRowKey[getRowKey(row)] = {...orig, ...row}
     }
@@ -211,16 +245,26 @@ const combineRows = (rows: any[]): any[] => {
 
     const antiRowsCombined = combinedRows.filter((it: any) => !it.peptide.includes('+')).map((row: any) => {
         const antiPeptideRowKey = getRowKey({...row, peptide: row.peptide + ' + ' + antibody});
-        if(byRowKey[antiPeptideRowKey]) {
+        if (byRowKey[antiPeptideRowKey]) {
             const anti = byRowKey[antiPeptideRowKey];
             const antiValues = Object.fromEntries(Object.entries(antiKeys).map(([antiKey, regKey]) => {
                 return [antiKey, anti[regKey]]
             }))
 
-            return {
+            const rowWithAntiValues =  {
                 ...row,
                 ...antiValues
             }
+
+            console.log(row.donor);
+            if(ifnyFrequencies && ifnyByDonor[row.donor]){
+                return {
+                    ...rowWithAntiValues,
+                    ...ifnyByDonor[row.donor]
+                }
+            }
+
+            return rowWithAntiValues;
         }
 
         return row;
@@ -349,7 +393,13 @@ export const transformsStore: TransformsModel = {
     }),
     parseDonorData: thunk(async (actions, payload, helpers) => {
         const files = helpers.getState().files;
-        const donorData = Object.fromEntries(await Promise.all(files.map(readFileAsDonorData)));
+        const donorData = Object.fromEntries(await Promise.all(files.map(it => {
+            if (it.name.includes('IFNy')) {
+                return readFileAsIFNyFrequencies(it);
+            }
+
+            return readFileAsDonorData(it);
+        })));
         const allData = combineFiles(donorData);
         actions.setDonorData({all: {byRow: allData}, ...donorData});
     })

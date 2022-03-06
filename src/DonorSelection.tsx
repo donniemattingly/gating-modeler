@@ -68,6 +68,12 @@ export const DonorSelection = () => {
                                     Aggregated: ({value}: any) => `${Math.round(value * 100) / 100} (avg)`,
                                 },
                                 {
+                                    Header: 'Delta',
+                                    accessor: 'deltaFrequency',
+                                    aggregate: filteredAverage,
+                                    Aggregated: ({value}: any) => `${Math.round(value * 100) / 100} (avg)`,
+                                },
+                                {
                                     Header: 'Stimulated',
                                     accessor: 'originalFrequency',
                                 },
@@ -83,6 +89,12 @@ export const DonorSelection = () => {
                                 {
                                     Header: 'Fold Change',
                                     accessor: 'antibodyFoldChangeFrequency',
+                                    aggregate: filteredAverage,
+                                    Aggregated: ({value}: any) => `${Math.round(value * 100) / 100} (avg)`,
+                                },
+                                {
+                                    Header: 'Delta',
+                                    accessor: 'antibodyDeltaFrequency',
                                     aggregate: filteredAverage,
                                     Aggregated: ({value}: any) => `${Math.round(value * 100) / 100} (avg)`,
                                 },
@@ -111,6 +123,12 @@ export const DonorSelection = () => {
                                 Aggregated: ({value}: any) => `${Math.round(value * 100) / 100} (avg)`,
                             },
                             {
+                                Header: 'Delta',
+                                accessor: 'deltaMFI',
+                                aggregate: filteredAverage,
+                                Aggregated: ({value}: any) => `${Math.round(value * 100) / 100} (avg)`,
+                            },
+                            {
                                 Header: 'Stimulated',
                                 accessor: 'originalMFI',
                             },
@@ -130,6 +148,12 @@ export const DonorSelection = () => {
                                 Aggregated: ({value}: any) => `${Math.round(value * 100) / 100} (avg)`,
                             },
                             {
+                                Header: 'Delta',
+                                accessor: 'antibodyDeltaMFI',
+                                aggregate: filteredAverage,
+                                Aggregated: ({value}: any) => `${Math.round(value * 100) / 100} (avg)`,
+                            },
+                            {
                                 Header: 'Stimulated',
                                 accessor: 'antibodyOriginalMFI',
                             },
@@ -141,6 +165,31 @@ export const DonorSelection = () => {
                     }
                 ]
             },
+            {
+                Header: 'CD8T IFNy Frequency',
+                columns: [
+                    {
+                        Header: 'Flu',
+                        accessor: 'Flu'
+                    },
+                    {
+                        Header: 'SARS',
+                        accessor: 'SARS'
+                    },
+                    {
+                        Header: 'RSV',
+                        accessor: 'RSV'
+                    },
+                    {
+                        Header: 'CMV',
+                        accessor: 'CMV'
+                    },
+                    {
+                        Header: 'EBV',
+                        accessor: 'EBV'
+                    },
+                ]
+            }
         ],
         []
     )
@@ -152,6 +201,8 @@ export const DonorSelection = () => {
 
         return [];
     }, [donorData, file])
+
+    console.log(data);
 
 
     useEffect(() => {
@@ -201,6 +252,12 @@ const Styles = styled.div`
           border-bottom: 0;
         }
       }
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      background: #eee;
     }
 
     th,
