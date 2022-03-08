@@ -6,6 +6,7 @@ import {useDropzone} from "react-dropzone";
 import React from 'react'
 import styled from 'styled-components'
 import {TableOptions, useExpanded, useGroupBy, useSortBy, useTable} from 'react-table'
+import clsx from "clsx";
 
 const getInterestingInfo = (donor: string, donorData: any) => {
     const newData = {...donorData};
@@ -14,9 +15,22 @@ const getInterestingInfo = (donor: string, donorData: any) => {
 
 
 const filteredAverage = (leafValues: any[]): any => {
-    const filtered = leafValues.filter(it => !isNaN(it))
+    const filtered = leafValues.map(it => parseFloat(it)).filter(it => !isNaN(it))
     return filtered.reduce((a, b) => a + b, 0) / filtered.length;
 }
+
+const IndeterminateCheckbox = React.forwardRef(
+    ({indeterminate, ...rest}: any, ref) => {
+        const defaultRef: any = React.useRef()
+        const resolvedRef = ref || defaultRef
+
+        React.useEffect(() => {
+            resolvedRef.current.indeterminate = indeterminate
+        }, [resolvedRef, indeterminate])
+
+        return <input type="checkbox" ref={resolvedRef} {...rest} />
+    }
+)
 
 export const DonorSelection = () => {
     const files = useStoreState<StoreModel>(state => state.transforms.files)
@@ -74,11 +88,11 @@ export const DonorSelection = () => {
                                     Aggregated: ({value}: any) => `${Math.round(value * 100) / 100} (avg)`,
                                 },
                                 {
-                                    Header: 'Stimulated',
+                                    Header: 'orig',
                                     accessor: 'originalFrequency',
                                 },
                                 {
-                                    Header: 'Unstimulated',
+                                    Header: 'un',
                                     accessor: 'unstimulatedFrequency',
                                 },
                             ]
@@ -99,11 +113,11 @@ export const DonorSelection = () => {
                                     Aggregated: ({value}: any) => `${Math.round(value * 100) / 100} (avg)`,
                                 },
                                 {
-                                    Header: 'Stimulated',
+                                    Header: 'orig',
                                     accessor: 'antibodyOriginalFrequency',
                                 },
                                 {
-                                    Header: 'Unstimulated',
+                                    Header: 'un',
                                     accessor: 'antibodyUnstimulatedFrequency',
                                 },
                             ]
@@ -129,11 +143,11 @@ export const DonorSelection = () => {
                                 Aggregated: ({value}: any) => `${Math.round(value * 100) / 100} (avg)`,
                             },
                             {
-                                Header: 'Stimulated',
+                                Header: 'orig',
                                 accessor: 'originalMFI',
                             },
                             {
-                                Header: 'Unstimulated',
+                                Header: 'un',
                                 accessor: 'unstimulatedMFI',
                             },
                         ]
@@ -154,11 +168,11 @@ export const DonorSelection = () => {
                                 Aggregated: ({value}: any) => `${Math.round(value * 100) / 100} (avg)`,
                             },
                             {
-                                Header: 'Stimulated',
+                                Header: 'orig',
                                 accessor: 'antibodyOriginalMFI',
                             },
                             {
-                                Header: 'Unstimulated',
+                                Header: 'un',
                                 accessor: 'antibodyUnstimulatedMFI',
                             },
                         ]
@@ -221,7 +235,7 @@ export const DonorSelection = () => {
     }
 
     return (
-        <div className="m-auto flex flex-col items-center w-10/12">
+        <div>
             {files.length === 0
                 ? <div {...getRootProps()}
                        className="w-full mt-10 m-auto bg-slate-500 h-80 rounded-xl grid place-items-center">
@@ -238,13 +252,25 @@ export const DonorSelection = () => {
     )
 }
 
+const SortButton = (props: { isSorted: boolean, isSortedDesc?: boolean }) => {
+    const {isSorted, isSortedDesc} = props;
+    return <span className="flex flex-col justify-center items-center" {...props}>
+        <i className={clsx("fa-solid fa-caret-up", {'text-emerald-400': isSorted && isSortedDesc})}/>
+        <i className={clsx("fa-solid fa-caret-down", {'text-emerald-400': isSorted && !isSortedDesc})}/>
+    </span>
+}
+
 
 const Styles = styled.div`
   padding: 1rem;
 
   table {
     border-spacing: 0;
+    //table-layout: fixed;
+    width: 100%;
     border: 1px solid black;
+    overflow-x: auto;
+    border-collapse: separate; /* Don't collapse */
 
     tr {
       :last-child {
@@ -257,19 +283,30 @@ const Styles = styled.div`
     thead {
       position: sticky;
       top: 0;
-      background: #eee;
+      border-bottom: 1px solid black;
+      border-right: 1px solid black;
+      background: white;
+      tr {
+        //display: block;
+      }
+    }
+
+    tbody {
+      //display: block;
+      overflow: auto;
+      width: 100%;
     }
 
     th,
     td {
-      margin: 0;
-      padding: 0.5rem;
       border-bottom: 1px solid black;
       border-right: 1px solid black;
+      overflow-wrap: break-word;
+      hyphens: auto;
 
-      :last-child {
-        border-right: 0;
-      }
+      //:last-child {
+      //  border-right: 0;
+      //}
     }
   }
 `
@@ -281,6 +318,8 @@ function Table({columns, data}: any) {
         headerGroups,
         rows,
         prepareRow,
+        allColumns,
+        getToggleHideAllColumnsProps,
         state: {groupBy, expanded},
     } = useTable<any>(
         {
@@ -298,26 +337,37 @@ function Table({columns, data}: any) {
 
     return (
         <>
+            {/*<div>*/}
+            {/*    <div>*/}
+            {/*        <IndeterminateCheckbox {...getToggleHideAllColumnsProps()} /> Toggle*/}
+            {/*        All*/}
+            {/*    </div>*/}
+            {/*    {allColumns.map(column => (*/}
+            {/*        <div key={column.id}>*/}
+            {/*            <label>*/}
+            {/*                <input type="checkbox" {...column.getToggleHiddenProps()} />{' '}*/}
+            {/*                {column.id}*/}
+            {/*            </label>*/}
+            {/*        </div>*/}
+            {/*    ))}*/}
+            {/*    <br/>*/}
+            {/*</div>*/}
             <table {...getTableProps()}>
                 <thead>
                 {headerGroups.map(headerGroup => (
                     <tr {...headerGroup.getHeaderGroupProps()}>
                         {headerGroup.headers.map(column => (
                             <th {...column.getHeaderProps()}>
-                                {column.canGroupBy ? (
-                                    // If the column can be grouped, let's add a toggle
-                                    <span {...column.getGroupByToggleProps()}>
-                      {column.isGrouped ? '🛑 ' : '👊 '}
-                    </span>
-                                ) : null}
-                                {column.render('Header')}
-                                <span {...column.getSortByToggleProps()}>
-                    {column.isSorted
-                        ? column.isSortedDesc
-                            ? ' 🔽'
-                            : ' 🔼'
-                        : ' ▶️'}
-                  </span>
+                                <span
+                                    className={clsx("flex flex-row justify-between w-full h-full", {'bg-emerald-600': column.isGrouped})}>
+                                    <span {...column.getGroupByToggleProps()}>{column.render('Header')} </span>
+                                    {column.depth === 2
+                                        ? <SortButton isSorted={column.isSorted}
+                                                      isSortedDesc={column.isSortedDesc}
+                                                      {...column.getSortByToggleProps()} />
+                                        : null}
+
+                                </span>
                             </th>
                         ))}
                     </tr>
